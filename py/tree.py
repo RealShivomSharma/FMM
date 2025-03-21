@@ -63,10 +63,9 @@ def construct_tree(
     while k > 0:
         for _ in range(len(q)):
             node = q.popleft()
-            mid = (node.L + node.U) / 2
 
-            node.left = TreeNode(node.L, mid)
-            node.right = TreeNode(mid, node.U)
+            node.left = TreeNode(node.L, node.M)
+            node.right = TreeNode(node.M, node.U)
 
             q.append(node.left)
             q.append(node.right)
@@ -76,7 +75,7 @@ def construct_tree(
     return tree
 
 
-def compute_weights(
+def compute_weights_recursive(
     node: TreeNode,
     sources: np.array(float),
     charges: np.array(float),
@@ -99,9 +98,40 @@ def compute_weights(
         node.weights[m] = np.sum(charges_in_cell * (sources_in_cell - node.M) ** m)
 
     # Recurse on left and right subtree to compute weights
-    compute_weights(node.left, sources, charges, p)
-    compute_weights(node.right, sources, charges, p)
+    compute_weights_recursive(node.left, sources, charges, p)
+    compute_weights_recursive(node.right, sources, charges, p)
 
+    return
+
+
+def compute_weights_iterative(
+    root: TreeNode,
+    sources: np.array(float),
+    charges: np.array(float),
+    p: int,
+):
+
+    q = deque([root])
+
+    while q:
+        node = q.popleft()
+
+        sources_in_cell = sources[(sources >= node.L) & (sources <= node.U)]
+        charges_in_cell = charges[(sources >= node.L) & (sources <= node.U)]
+
+        # Initializing weights for the node
+        node.weights = np.zeros(p + 1)
+
+        if len(sources_in_cell) > 0:
+            for m in range(p + 1):
+                node.weights[m] = np.sum(
+                    charges_in_cell * (sources_in_cell - node.M) ** m
+                )
+
+        if node.left:
+            q.append(node.left)
+        if node.right:
+            q.append(node.right)
     return
 
 
@@ -109,7 +139,7 @@ if __name__ == "__main__":
 
     # Create Tree
     T = (0, 1)
-    k = 3
+    k = 15
     tree = construct_tree(T, k)
 
     # Initiate sources and charges
@@ -119,5 +149,5 @@ if __name__ == "__main__":
     # order of expansion
     p = 2
 
-    compute_weights(tree.root, sources, charges, p)
-    tree.print_tree()
+    compute_weights_iterative(tree.root, sources, charges, p)
+    # tree.print_tree()
