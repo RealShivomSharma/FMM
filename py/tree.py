@@ -1,3 +1,4 @@
+import numpy as np
 from collections import deque
 
 
@@ -7,8 +8,10 @@ class TreeNode:
     def __init__(self, L, U):
         self.L = L
         self.U = U
+        self.M = (L + U) / 2
         self.left = None
         self.right = None
+        self.weights = None
 
 
 class Tree:
@@ -27,7 +30,7 @@ class Tree:
             for _ in range(len(q)):
                 node = q.popleft()
                 if node:
-                    nodes.append([node.L, node.U])
+                    nodes.append([node.L, node.U, node.weights])
                     q.append(node.left)
                     q.append(node.right)
             if not nodes:
@@ -73,9 +76,48 @@ def construct_tree(
     return tree
 
 
+def compute_weights(
+    node: TreeNode,
+    sources: np.array(float),
+    charges: np.array(float),
+    p: int,
+):
+
+    # Base case for NULL Node
+    if node is None:
+        return
+
+    sources_in_cell = sources[(sources >= node.L) & (sources <= node.U)]
+    charges_in_cell = charges[(sources >= node.L) & (sources <= node.U)]
+
+    # Initializing weights for the node
+    node.weights = np.zeros(p + 1)
+
+    # Compute weights through multipole expansion
+
+    for m in range(p + 1):
+        node.weights[m] = np.sum(charges_in_cell * (sources_in_cell - node.M) ** m)
+
+    # Recurse on left and right subtree to compute weights
+    compute_weights(node.left, sources, charges, p)
+    compute_weights(node.right, sources, charges, p)
+
+    return
+
+
 if __name__ == "__main__":
+
+    # Create Tree
     T = (0, 1)
     k = 3
     tree = construct_tree(T, k)
+
+    # Initiate sources and charges
+    sources = np.array([0.1, 0.2, 0.6, 0.9])
+    charges = np.array([1.0, -1.0, 1.0, -1.0])
+
+    # order of expansion
+    p = 2
+
+    compute_weights(tree.root, sources, charges, p)
     tree.print_tree()
-# Construction algorithm
