@@ -135,7 +135,7 @@ def compute_weights_iterative(
     return
 
 
-def far_field_approximation(tree: Tree, targets: np.array, p: int):
+def far_field_approximation(tree: Tree, delta: float, targets: np.array, p: int):
 
     ff_potential = np.zeros(len(targets))  # far field potentials for each target
 
@@ -152,8 +152,7 @@ def far_field_approximation(tree: Tree, targets: np.array, p: int):
             cell_size = node.U - node.L
 
             # if it is far field
-            if distance > cell_size:
-
+            if distance > delta * cell_size:
                 # compute phi and increment potential
                 phi = eval_multipole_expansion(node, target, p)
                 u += phi
