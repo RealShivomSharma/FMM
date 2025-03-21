@@ -15,6 +15,9 @@ class TreeNode:
 
 
 class Tree:
+    """
+    Base Tree Class for Building uniform distribution
+    """
 
     def __init__(self, root: TreeNode):
         self.root = root
@@ -81,7 +84,14 @@ def compute_weights_recursive(
     charges: np.array(float),
     p: int,
 ):
+    """Multipole weight computation using Depth First Traversal
 
+    Args:
+        node: Current TreeNode
+        sources: Source vector
+        charges: Charge vector
+        p: Order of expansion
+    """
     # Base case for NULL Node
     if node is None:
         return
@@ -110,6 +120,14 @@ def compute_weights_iterative(
     charges: np.array(float),
     p: int,
 ):
+    """Multipole weight computation using level-order traversal
+
+    Args:
+        root: Root TreeNode of the tree to compute
+        sources: Source vector
+        charges: Charge vector
+        p: Order of expansion
+    """
 
     q = deque([root])
 
@@ -136,6 +154,14 @@ def compute_weights_iterative(
 
 
 def far_field_approximation(tree: Tree, delta: float, targets: np.array, p: int):
+    """Function to compute the far field approximation
+
+    Args:
+        tree: Tree Object
+        delta: Tolerance for deciding far field
+        targets: Target vector
+        p: Order of expansion
+    """
 
     ff_potential = np.zeros(len(targets))  # far field potentials for each target
 
@@ -169,6 +195,13 @@ def far_field_approximation(tree: Tree, delta: float, targets: np.array, p: int)
 
 
 def eval_multipole_expansion(node: TreeNode, target: float, p: int):
+    """Evaluate multipole expansion for a given target point
+
+    Args:
+        node: Current TreeNode for which the multipole expansion is evaluated
+        target: The target point at which the potential is being calculated
+        p: The order of the multipole expansion
+    """
 
     phi = 0.0
     for m in range(p + 1):
