@@ -135,11 +135,56 @@ def compute_weights_iterative(
     return
 
 
+def far_field_approximation(tree: Tree, targets: np.array, p: int):
+
+    ff_potential = np.zeros(len(targets))  # far field potentials for each target
+
+    for i, target in enumerate(targets):
+
+        # far field potential
+        u = 0.0
+
+        q = deque([tree.root])
+
+        while q:
+            node = q.popleft()
+            distance = abs(target - node.M)
+            cell_size = node.U - node.L
+
+            # if it is far field
+            if distance > cell_size:
+
+                # compute phi and increment potential
+                phi = eval_multipole_expansion(node, target, p)
+                u += phi
+
+            if node.left:
+                q.append(node.left)
+            if node.right:
+                q.append(node.right)
+
+        # Store farfield potential
+        ff_potential[i] = u
+
+    return ff_potential
+
+
+def eval_multipole_expansion(node: TreeNode, target: float, p: int):
+
+    phi = 0.0
+    for m in range(p + 1):
+        # S_m(x) = x^{-m}
+        S_m = (node.M - target) ** (-m) if m > 0 else 1.0
+        phi += node.weights[m] * S_m
+
+    return phi
+
+
 if __name__ == "__main__":
 
     # Create Tree
     T = (0, 1)
-    k = 15
+    k = 10
     tree = construct_tree(T, k)
 
     # Initiate sources and charges
@@ -150,4 +195,11 @@ if __name__ == "__main__":
     p = 2
 
     compute_weights_iterative(tree.root, sources, charges, p)
+
+    targets = np.array([0.05, 0.25, 0.55, 0.85])
+
+    far_field_potential = far_field_approximation(tree, targets, p)
+
+    print("Far-Field Potential at targets:", far_field_potential)
+
     # tree.print_tree()
