@@ -2,6 +2,14 @@ import numpy as np
 from collections import deque
 
 
+class Point:
+
+    def __init__(self, x, y, data=None):
+
+        self.x, self.y = x, y
+        self.data = data
+
+
 class TreeNode:
 
     # Lower and Upper bound
@@ -17,6 +25,9 @@ class TreeNode:
 class Tree:
     """
     Base Tree Class for Building uniform distribution
+
+    #TODO: Implement Quadtree in 2D
+
     """
 
     def __init__(self, root: TreeNode):
@@ -178,7 +189,7 @@ def far_field_approximation(tree: Tree, delta: float, targets: np.array, p: int)
             cell_size = node.U - node.L
 
             # if it is far field
-            if distance > delta * cell_size:
+            if distance > (delta * cell_size):
                 # compute phi and increment potential
                 phi = eval_multipole_expansion(node, target, p)
                 u += phi
@@ -230,7 +241,7 @@ if __name__ == "__main__":
 
     targets = np.array([0.05, 0.25, 0.55, 0.85])
 
-    far_field_potential = far_field_approximation(tree, targets, p)
+    far_field_potential = far_field_approximation(tree, 1, targets, p)
 
     print("Far-Field Potential at targets:", far_field_potential)
 
