@@ -22,6 +22,8 @@ class MatrixNode:
         self.data = None
         self.children = []
         self.is_leaf = is_leaf  # Indicator of leaf node
+        self.multipole = None
+        self.local = None
 
     @property
     def shape(self):
@@ -320,10 +322,49 @@ def reconstruct_dense(node: MatrixNode, shape: tuple) -> np.array:
     return M
 
 
+def HMult_dense(A: MatrixNode, B: np.array, tol=1e-6, max_rank=10):
+
+    col_start, col_end = A.col_range
+    sub_matrix_B = B[col_start:col_end, :]
+
+    if A.is_leaf:
+
+        if isinstance(A.data, tuple):
+
+            U, V = A.data
+
+            return U @ (V @ sub_matrix_B)
+        else:
+            return A.data @ sub_matrix_B
+
+    else:
+
+        # recurisvely multiply
+        top_left = HMult_dense(A.children[0], B, tol, max_rank)
+        top_right = HMult_dense(A.children[1], B, tol, max_rank)
+
+        top_result = top_left + top_right
+        bottom_left = HMult_dense(A.children[2], B, tol, max_rank)
+        bottom_right = HMult_dense(A.children[3], B, tol, max_rank)
+        bottom_result = bottom_left + bottom_right
+
+        return np.vstack([top_result, bottom_result])
+
+
+# def evaluate_leaf(node):
+
+#     far_field_approx = evaluate_local(node.local)
+
+#     near_field = compute_near_field(node)
+#     node.result = far_field_approx + near_field
+
+#     pass
+
+
 if __name__ == "__main__":
     # A (m x n)
     # B (n x p)
-    m, n, p = 10000, 10000, 10000
+    m, n, p = 1024, 1024, 64
     min_size = 64
     tol = 1e-6
     max_rank = 10
@@ -344,21 +385,26 @@ if __name__ == "__main__":
     # -------------------- Compression Pass --------------------
     # Build hierarchical matrices from the padded versions.
     hA = HMatrix(A_padded, max_rank, min_size, tol)
-    hB = HMatrix(B_padded, max_rank, min_size, tol)
+    # hB = HMatrix(B_padded, max_rank, min_size, tol)
+
+    res = HMult_dense(hA.root, B_orig, tol, max_rank)
+    print(res)
+
+    # upward_pass(hA.root, tol, max_rank)
 
     # -------------------- Evolution Pass --------------------
     # Multiply the hierarchical matrices.
-    prod_root = HMultiply(hA.root, hB.root, tol, max_rank, min_size)
+    # prod_root = HMultiply(hA.root, hB.root, tol, max_rank, min_size)
 
     # Reconstruct the full padded product.
-    prod_padded = reconstruct_dense(prod_root, (m_pad, p_pad))
+    # prod_padded = reconstruct_dense(prod_root, (m_pad, p_pad))
     # Crop the product back to the original dimensions.
-    result = crop_matrix(prod_padded, (m, p))
+    # result = crop_matrix(prod_padded, (m, p))
 
     # Regular Mat Mul
     direct = A_orig @ B_orig
     # Compute the normalized error
-    error = np.linalg.norm(result - direct) / np.linalg.norm(direct)
+    error = np.linalg.norm(res - direct) / np.linalg.norm(direct)
 
     # print("Direct multiplication result:")
     # print(direct)
@@ -366,5 +412,5 @@ if __name__ == "__main__":
     # print(result)
     print("Original dimensions: A:", A_orig.shape, "B:", B_orig.shape)
     print("Padded dimensions: A:", A_padded.shape, "B:", B_padded.shape)
-    print("Result dimensions (after cropping):", result.shape)
+    # print("Result dimensions (after cropping):", result.shape)
     print("Relative error between hierarchical and direct multiplication:", error)
