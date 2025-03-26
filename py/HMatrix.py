@@ -350,6 +350,37 @@ def HMult_dense(A: MatrixNode, B: np.array):
         return np.vstack([top_result, bottom_result])
 
 
+def count_nonzeros(node: MatrixNode) -> int:
+    if node.is_leaf:
+        if isinstance(node.data, tuple):
+            U, V = node.data
+            return np.count_nonzero(U) + np.count_nonzero(V)
+        else:
+            return np.count_nonzero(node.data)
+
+    else:
+        return sum(count_nonzeros(child) for child in node.children)
+
+
+def measure_compression(hmatrix: HMatrix) -> dict:
+
+    original_size = (
+        hmatrix.nrows * hmatrix.ncols * 8
+    )  # assuming each occupies 8 bytes for float64
+
+    compressed_size = count_nonzeros(hmatrix.root)
+
+    compression_ratio = (
+        original_size / compressed_size if compressed_size > 0 else float("inf")
+    )
+
+    return {
+        "original_size": original_size,
+        "compressed_size": compressed_size,
+        "compression_ratio": compression_ratio,
+    }
+
+
 # def evaluate_leaf(node):
 
 #     far_field_approx = evaluate_local(node.local)
@@ -384,6 +415,7 @@ if __name__ == "__main__":
     # -------------------- Compression Pass --------------------
     # Build hierarchical matrices from the padded versions.
     hA = HMatrix(A_padded, max_rank, min_size, tol)
+    print(measure_compression(hA))
     # hB = HMatrix(B_padded, max_rank, min_size, tol)
 
     res = HMult_dense(hA.root, B_padded)
