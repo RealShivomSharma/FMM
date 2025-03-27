@@ -1,4 +1,5 @@
 import numpy as np
+import sys
 from scipy.linalg import svd
 
 
@@ -365,7 +366,7 @@ def count_nonzeros(node: MatrixNode) -> int:
 def measure_compression(hmatrix: HMatrix) -> dict:
 
     original_size = (
-        hmatrix.nrows * hmatrix.ncols * 8
+        hmatrix.nrows * hmatrix.ncols * sys.getsizeof(hmatrix.root)
     )  # assuming each occupies 8 bytes for float64
 
     compressed_size = count_nonzeros(hmatrix.root)
@@ -381,20 +382,10 @@ def measure_compression(hmatrix: HMatrix) -> dict:
     }
 
 
-# def evaluate_leaf(node):
-
-#     far_field_approx = evaluate_local(node.local)
-
-#     near_field = compute_near_field(node)
-#     node.result = far_field_approx + near_field
-
-#     pass
-
-
 if __name__ == "__main__":
     # A (m x n)
     # B (n x p)
-    m, n, p = 10000, 10000, 1000
+    m, n, p = 1000, 1000, 1000
     min_size = 256
     tol = 1e-6
     max_rank = 10
