@@ -352,6 +352,13 @@ def HMult_dense(A: MatrixNode, B: np.array):
 
 
 def count_nonzeros(node: MatrixNode) -> int:
+    """Function to recurisvely count zeros
+    Args:
+        node: Current Block
+
+    Returns:
+        Returns the number of 0 elements in a block
+    """
     if node.is_leaf:
         if isinstance(node.data, tuple):
             U, V = node.data
@@ -364,9 +371,19 @@ def count_nonzeros(node: MatrixNode) -> int:
 
 
 def measure_compression(hmatrix: HMatrix) -> dict:
+    """Function to determine compression of an hmatrix
+
+    Recursively calls count_nonzero function on the tree
+
+    Args:
+        hmatrix: The constructed HMatrix
+
+    Returns:
+        Dictionary containing the original size, compressed size and ratio
+    """
 
     original_size = (
-        hmatrix.nrows * hmatrix.ncols * sys.getsizeof(hmatrix.root)
+        hmatrix.nrows * hmatrix.ncols * hmatrix.matrix.dtype.itemsize
     )  # assuming each occupies 8 bytes for float64
 
     compressed_size = count_nonzeros(hmatrix.root)
@@ -412,6 +429,7 @@ if __name__ == "__main__":
     res = HMult_dense(hA.root, B_padded)
 
     res = crop_matrix(res, (m, p))
+
     # print(res)
 
     # upward_pass(hA.root, tol, max_rank)
@@ -427,6 +445,7 @@ if __name__ == "__main__":
 
     # Regular Mat Mul
     direct = A_orig @ B_orig
+
     # Compute the normalized error
     error = np.linalg.norm(res - direct) / np.linalg.norm(direct)
 
