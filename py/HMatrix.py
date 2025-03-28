@@ -385,7 +385,6 @@ def measure_compression(hmatrix: HMatrix) -> dict:
     original_size = (
         hmatrix.nrows * hmatrix.ncols * hmatrix.matrix.dtype.itemsize
     )  # assuming each occupies 8 bytes for float64
-
     compressed_size = count_nonzeros(hmatrix.root)
 
     compression_ratio = (
