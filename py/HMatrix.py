@@ -1,6 +1,8 @@
 import numpy as np
 import sys
 from scipy.linalg import svd
+from scipy.sparse import random
+import time
 
 
 class MatrixNode:
@@ -401,10 +403,11 @@ def measure_compression(hmatrix: HMatrix) -> dict:
 if __name__ == "__main__":
     # A (m x n)
     # B (n x p)
-    m, n, p = 1000, 1000, 1000
-    min_size = 256
+    m, n, p = 10000, 10000, 1
+    min_size = 512
     tol = 1e-6
-    max_rank = 10
+    max_rank = 2
+    sparse_mat = random(n, p, density=0.01, format="csr", dtype=np.float64).toarray()
 
     # Create random matrices A and B.
     A_orig = np.random.rand(m, n)
@@ -418,16 +421,28 @@ if __name__ == "__main__":
     # Pad A and B.
     A_padded = pad_matrix(A_orig, (m_pad, n_pad))
     B_padded = pad_matrix(B_orig, (n_pad, p_pad))
+    sparse_padded = pad_matrix(sparse_mat, (n_pad, p_pad))
 
     # -------------------- Compression Pass --------------------
     # Build hierarchical matrices from the padded versions.
     hA = HMatrix(A_padded, max_rank, min_size, tol)
-    print(measure_compression(hA))
+
+    # print(measure_compression(hA))
     # hB = HMatrix(B_padded, max_rank, min_size, tol)
 
     res = HMult_dense(hA.root, B_padded)
 
+    sparse_mult = HMult_dense(hA.root, sparse_padded)
     res = crop_matrix(res, (m, p))
+
+    sparse_mult = crop_matrix(sparse_mult, (n, p))
+
+    direct_sparse = A_orig @ sparse_mat
+
+    error_sparse = np.linalg.norm(sparse_mult - direct_sparse) / np.linalg.norm(
+        direct_sparse
+    )
+    print("Sparse Error", error_sparse)
 
     # print(res)
 
