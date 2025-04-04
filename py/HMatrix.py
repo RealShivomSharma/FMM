@@ -1,8 +1,7 @@
 import numpy as np
-import sys
+import pandas as pd
 from scipy.linalg import svd
-from scipy.sparse import random
-import time
+from scipy.spatial import distance
 
 
 class MatrixNode:
@@ -14,22 +13,20 @@ class MatrixNode:
     # Lower and Upper bound
     def __init__(
         self,
-        row_range: tuple,
-        col_range: tuple,
+        row_range: tuple[int, int],
+        col_range: tuple[int, int],
         data=None,
         is_leaf: bool = False,
+        is_low_rank: bool = False,
     ):
-
         self.row_range = row_range
         self.col_range = col_range
         self.data = None
         self.children = []
         self.is_leaf = is_leaf  # Indicator of leaf node
-        self.multipole = None
-        self.local = None
 
     @property
-    def shape(self):
+    def shape(self) -> tuple[int, int]:
         return (
             self.row_range[1] - self.row_range[0],
             self.col_range[1] - self.col_range[0],
@@ -41,7 +38,7 @@ def next_power_of_two(x: int) -> int:
     return 1 << (x - 1).bit_length()
 
 
-def pad_matrix(M: np.array, target_shape: tuple) -> np.array:
+def pad_matrix(M: np.ndarray, target_shape: tuple[int, int]) -> np.ndarray:
     """Pad matrix M with zeros to match target_shape."""
     m, n = M.shape
     target_m, target_n = target_shape
@@ -56,24 +53,108 @@ def crop_matrix(M: np.array, orig_shape: tuple) -> np.array:
     return M[:m, :n]
 
 
-def compress_block(M: np.array, tol: float, max_rank: int):
-    """Compresses Matrix into SVD form for sparse matrix
+def is_compressable(
+    row_range: tuple[int, int],
+    col_range: tuple[int, int],
+    row_points: np.array,
+    col_points: np.array,
+    distance_criterion: float,
+):
+    """Function to determine approximatability of a matrix
+
+    Utilizes a distance criterion for the rows and columns in a matrix
+    and returns whether we can approximate it
+
 
     Args:
-        M: Input Matrix
-        tol: Rank sum tolerance
-        max_rank: Rank to determine if matrix can be approximated
+        row_range tuple[int,int]: The start and end of rows
+        col_range tuple[int,int]: The start and end of cols
+        row_points np.array: Points contained within row range
+        col_points np.array: Points contained within col range
+        distance_criterion float: approximation criteria
     """
+    if row_points is None or col_points is None:
+        return False
 
-    # Perform SVD
-    U, s, Vh = svd(M, full_matrices=False)
+    row_subset = row_points[row_range[0] : row_range[1]]
+    col_subset = col_points[col_range[0] : col_range[1]]
 
-    # Rank determined by column sums of s vector
-    rank = np.sum(s > tol)
-    # Compress the matrix
-    if rank <= max_rank:
-        return (U[:, :rank] * s[:rank], Vh[:rank, :])
+    if len(row_subset) == 0 or len(col_subset) == 0:
+        return False
+
+    row_center = np.mean(row_subset, axis=0)
+    col_center = np.mean(col_subset, axis=0)
+
+    row_diam = np.max(distance.pdist(row_subset)) if len(row_subset) > 1 else 0
+    col_diam = np.max(distance.pdist(col_subset)) if len(col_subset) > 1 else 0
+
+    center_dist = np.linalg.norm(row_center - col_center)
+
+    return center_dist > distance_criterion * max(row_diam, col_diam)
+
+
+def compress_block(M: np.array, tol: float, max_rank: int):
+    """
+    Compresses Matrix into SVD form if approximation is beneficial,
+    otherwise returns the dense block.
+
+    Args:
+        M: Input Matrix block.
+        tol: Tolerance for singular values to determine rank.
+        max_rank: Maximum allowable rank for low-rank approximation.
+
+    Returns:
+        Either a tuple (U_compressed, Vh_compressed) for low-rank blocks
+        or the original dense block M if compression is not performed.
+    """
+    rows, cols = M.shape
+
+    # If the block is too small and dense is more efficient
+    if rows <= 2 or cols <= 2:
+        return M.copy()
+
+    try:
+        # Perform SVD
+        U, s, Vh = svd(M, full_matrices=False)
+    except np.linalg.LinAlgError:
+        # Handle cases where SVD might fail (e.g., all zeros, NaNs, Infs)
+        print(f"  WARN: SVD failed for block shape {M.shape}. Storing dense.")
+        return M.copy()
+    except Exception as e:
+        print(
+            f"  WARN: Unexpected error during SVD for block shape {M.shape}: {e}. Storing dense."
+        )
+        return M.copy()
+
+    frob_norm = np.linalg.norm(M, ord="fro")
+
+    # Zero Matrices
+    if frob_norm <= 1e-14:
+        return np.zeros_like(M)
+
+    # Rank determined by singular values greater than tolerance
+    energy = np.cumsum(s**2) / np.sum(s**2)
+    rank = np.searchsorted(energy, 1.0 - tol) + 1
+
+    rank = min(rank, max_rank)
+    # Check if the matrix is effectively zero rank based on tolerance
+    if rank == 0:
+        return np.zeros_like(M)
+
+    # Calculate storage costs (number of elements)
+    low_rank_cost = rank * (rows + cols)
+    dense_cost = rows * cols
+
+    # Check if low-rank approximation is valid and efficient
+    # Condition: rank within limit AND low-rank storage is cheaper/equal AND rank > 0 (already checked)
+    if rank <= max_rank and low_rank_cost <= dense_cost:
+        # print(f"  Block {M.shape}: Rank={rank}. Compressing (LR cost {low_rank_cost} <= Dense cost {dense_cost})") # Optional debug
+        # Store U*s and Vh. Using ascontiguousarray might help performance slightly later.
+        U_compressed = np.ascontiguousarray(U[:, :rank] * s[:rank].reshape(1, -1))
+        Vh_compressed = np.ascontiguousarray(Vh[:rank, :])
+        return (U_compressed, Vh_compressed)
     else:
+        # print(f"  Block {M.shape}: Rank={rank}. Storing dense (LR cost {low_rank_cost} > Dense cost {dense_cost} or rank > max_rank)") # Optional debug
         return M.copy()
 
 
@@ -90,7 +171,6 @@ def get_dense_from_node(node: MatrixNode):
         else:
             return node.data
     else:
-
         # Recursively get to the leaf node of each child and reconstruct dense
 
         r_start, r_end = node.row_range
@@ -132,11 +212,13 @@ def add_nodes(node1: MatrixNode, node2: MatrixNode, tol=1e-6, max_rank=10):
 
 def construct_tree(
     matrix: np.array,
-    row_range: tuple,
-    col_range: tuple,
+    row_range: tuple[int, int],
+    col_range: tuple[int, int],
     min_size: int,
     tol: float,
     max_rank: int,
+    row_points=None,
+    col_points=None,
 ) -> MatrixNode:
     """Function to perform the compression pass of the HMatrix
 
@@ -156,12 +238,27 @@ def construct_tree(
     rows = row_range[1] - row_range[0]
     cols = col_range[1] - col_range[0]
 
-    sub_matrix = matrix[row_range[0] : row_range[1], col_range[0] : col_range[1]]
-
     if rows <= min_size or cols <= min_size:
         node.is_leaf = True
+        sub_matrix = matrix[row_range[0] : row_range[1], col_range[0] : col_range[1]]
         node.data = compress_block(sub_matrix, tol, max_rank)
+        if isinstance(node.data, tuple):
+            node.is_low_rank = True
         return node
+
+    if row_points is not None and col_points is not None:
+        if is_compressable(
+            row_range, col_range, row_points, col_points, distance_criterion=0.5
+        ):
+            node.is_leaf = True
+            sub_matrix = matrix[
+                row_range[0] : row_range[1],
+                col_range[0] : col_range[1],
+            ]
+            node.data = compress_block(sub_matrix, tol, max_rank)
+            if isinstance(node.data, tuple):
+                node.is_low_rank = True
+            return node
 
     # Divide into 4 quadrants
 
@@ -215,7 +312,6 @@ class HMatrix:
     def __init__(self, matrix: np.array, max_rank=5, min_size=16, tol=1e-6):
         self.matrix = matrix
         self.nrows, self.ncols = matrix.shape
-        self.root = MatrixNode(0, self.nrows, 0, self.ncols)
         self.max_rank = max_rank
         self.min_size = min_size
         self.tol = tol
@@ -325,23 +421,18 @@ def reconstruct_dense(node: MatrixNode, shape: tuple) -> np.array:
     return M
 
 
-def HMult_dense(A: MatrixNode, B: np.array):
-
+def HMult_dense(A: MatrixNode, B: np.array) -> np.ndarray:
     col_start, col_end = A.col_range
     sub_matrix_B = B[col_start:col_end, :]
 
     if A.is_leaf:
-
         if isinstance(A.data, tuple):
-
             U, V = A.data
             return U @ (V @ sub_matrix_B)
-        else:
-            return A.data @ sub_matrix_B
+        return A.data @ sub_matrix_B
 
     else:
-
-        # recurisvely multiply
+        # recursively multiply
         top_left = HMult_dense(A.children[0], B)
         top_right = HMult_dense(A.children[1], B)
         top_result = top_left + top_right
@@ -353,50 +444,52 @@ def HMult_dense(A: MatrixNode, B: np.array):
         return np.vstack([top_result, bottom_result])
 
 
-def count_nonzeros(node: MatrixNode) -> int:
-    """Function to recurisvely count zeros
+def count_stored_elements(node: MatrixNode) -> int:
+    """
+    Recursively counts the total number of elements stored in the HMatrix tree.
+    This represents the memory footprint relative to a dense matrix.
+
     Args:
-        node: Current Block
+        node: Current MatrixNode.
 
     Returns:
-        Returns the number of 0 elements in a block
+        Total number of numerical elements stored in the subtree rooted at node.
     """
     if node.is_leaf:
         if isinstance(node.data, tuple):
+            # Low-rank storage: U and V factors
             U, V = node.data
-            return np.count_nonzero(U) + np.count_nonzero(V)
+            # Return total elements stored in U and V
+            return U.size + V.size
+        elif node.data is not None:
+            # Dense block storage
+            # Return total elements stored in the dense block
+            return node.data.size
         else:
-            return np.count_nonzero(node.data)
-
-    else:
-        return sum(count_nonzeros(child) for child in node.children)
+            # Handle cases where a leaf might have None data (shouldn't normally happen)
+            return 0
+    else:  # Internal node
+        # Recursively sum elements stored in children
+        return sum(count_stored_elements(child) for child in node.children)
 
 
 def measure_compression(hmatrix: HMatrix) -> dict:
-    """Function to determine compression of an hmatrix
+    original_size_bytes = hmatrix.nrows * hmatrix.ncols * hmatrix.matrix.dtype.itemsize
+    compressed_elements = count_stored_elements(hmatrix.root)
 
-    Recursively calls count_nonzero function on the tree
-
-    Args:
-        hmatrix: The constructed HMatrix
-
-    Returns:
-        Dictionary containing the original size, compressed size and ratio
-    """
-
-    original_size = (
-        hmatrix.nrows * hmatrix.ncols * hmatrix.matrix.dtype.itemsize
-    )  # assuming each occupies 8 bytes for float64
-    compressed_size = count_nonzeros(hmatrix.root)
+    # Calculate compressed size in BYTES
+    compressed_size_bytes = compressed_elements * hmatrix.matrix.dtype.itemsize
 
     compression_ratio = (
-        original_size / compressed_size if compressed_size > 0 else float("inf")
+        original_size_bytes / compressed_size_bytes
+        if compressed_size_bytes > 0
+        else float("inf")
     )
 
     return {
-        "original_size": original_size,
-        "compressed_size": compressed_size,
-        "compression_ratio": compression_ratio,
+        "original_size_bytes": original_size_bytes,  # Key clarifies units
+        "compressed_size_bytes": compressed_size_bytes,  # Key clarifies units
+        "compression_ratio": compression_ratio,  # Now should be 1.0
     }
 
 
@@ -404,10 +497,9 @@ if __name__ == "__main__":
     # A (m x n)
     # B (n x p)
     m, n, p = 10000, 10000, 1
-    min_size = 512
-    tol = 1e-6
-    max_rank = 2
-    sparse_mat = random(n, p, density=0.01, format="csr", dtype=np.float64).toarray()
+    min_size = 16
+    tol = 1e-4
+    max_rank = 16
 
     # Create random matrices A and B.
     A_orig = np.random.rand(m, n)
@@ -421,53 +513,29 @@ if __name__ == "__main__":
     # Pad A and B.
     A_padded = pad_matrix(A_orig, (m_pad, n_pad))
     B_padded = pad_matrix(B_orig, (n_pad, p_pad))
-    sparse_padded = pad_matrix(sparse_mat, (n_pad, p_pad))
 
     # -------------------- Compression Pass --------------------
-    # Build hierarchical matrices from the padded versions.
+    # Build hierarchical matrix A
     hA = HMatrix(A_padded, max_rank, min_size, tol)
-
-    # print(measure_compression(hA))
-    # hB = HMatrix(B_padded, max_rank, min_size, tol)
-
-    res = HMult_dense(hA.root, B_padded)
-
-    sparse_mult = HMult_dense(hA.root, sparse_padded)
-    res = crop_matrix(res, (m, p))
-
-    sparse_mult = crop_matrix(sparse_mult, (n, p))
-
-    direct_sparse = A_orig @ sparse_mat
-
-    error_sparse = np.linalg.norm(sparse_mult - direct_sparse) / np.linalg.norm(
-        direct_sparse
-    )
-    print("Sparse Error", error_sparse)
-
-    # print(res)
-
-    # upward_pass(hA.root, tol, max_rank)
+    print(measure_compression(hA))
 
     # -------------------- Evolution Pass --------------------
-    # Multiply the hierarchical matrices.
-    # prod_root = HMultiply(hA.root, hB.root, tol, max_rank, min_size)
+    # Compute dense product
+    res = HMult_dense(hA.root, B_padded)
+    res = crop_matrix(res, (m, p))
 
-    # Reconstruct the full padded product.
-    # prod_padded = reconstruct_dense(prod_root, (m_pad, p_pad))
-    # Crop the product back to the original dimensions.
-    # result = crop_matrix(prod_padded, (m, p))
+    # Reconstruction Error
+    reconstructed = reconstruct_dense(hA.root, hA.root.shape)
+    reconstructed = crop_matrix(reconstructed, (m, n))
+    print(
+        "Reconstruction Error",
+        np.linalg.norm(A_orig - reconstructed) / np.linalg.norm(reconstructed),
+    )
 
     # Regular Mat Mul
     direct = A_orig @ B_orig
 
     # Compute the normalized error
     error = np.linalg.norm(res - direct) / np.linalg.norm(direct)
-
-    # print("Direct multiplication result:")
-    # print(direct)
-    # print("Hierarchical multiplication result:")
-    # print(result)
     print("Original dimensions: A:", A_orig.shape, "B:", B_orig.shape)
-    # print("Padded dimensions: A:", A_padded.shape, "B:", B_padded.shape)
-    # print("Result dimensions (after cropping):", result.shape)
     print("Relative error between hierarchical and direct multiplication:", error)
