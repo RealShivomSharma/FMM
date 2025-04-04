@@ -132,7 +132,7 @@ def compress_block(M: np.array, tol: float, max_rank: int):
     if frob_norm <= 1e-14:
         return np.zeros_like(M)
 
-    # Rank determined by singular values greater than tolerance
+    # Get the energy (Squared Frobenisu Norm)
     energy = np.cumsum(s**2) / np.sum(s**2)
     rank = np.searchsorted(energy, 1.0 - tol) + 1
 
@@ -146,10 +146,7 @@ def compress_block(M: np.array, tol: float, max_rank: int):
     dense_cost = rows * cols
 
     # Check if low-rank approximation is valid and efficient
-    # Condition: rank within limit AND low-rank storage is cheaper/equal AND rank > 0 (already checked)
     if rank <= max_rank and low_rank_cost <= dense_cost:
-        # print(f"  Block {M.shape}: Rank={rank}. Compressing (LR cost {low_rank_cost} <= Dense cost {dense_cost})") # Optional debug
-        # Store U*s and Vh. Using ascontiguousarray might help performance slightly later.
         U_compressed = np.ascontiguousarray(U[:, :rank] * s[:rank].reshape(1, -1))
         Vh_compressed = np.ascontiguousarray(Vh[:rank, :])
         return (U_compressed, Vh_compressed)
