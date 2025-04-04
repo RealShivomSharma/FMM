@@ -216,6 +216,7 @@ def construct_tree(
     max_rank: int,
     row_points=None,
     col_points=None,
+    adaptive=False,
 ) -> MatrixNode:
     """Function to perform the compression pass of the HMatrix
 
@@ -225,7 +226,10 @@ def construct_tree(
         col_range: Tuple of col start and end
         min_size: Minimum size to decide compression/making of leaf node
         tol: Tolerance for s matrix
-        max_rank: Maximum rank to determine whether the
+        max_rank: Maximum rank to determine compression
+        row_points: row points to check compressability
+        col_points: col points to check compressability
+        adaptive: Whether to run adaptive compression with row and col points
 
     Returns:
         Root of the newly created Matrix Node
@@ -243,7 +247,7 @@ def construct_tree(
             node.is_low_rank = True
         return node
 
-    if row_points is not None and col_points is not None:
+    if adaptive and row_points is not None and col_points is not None:
         if is_compressable(
             row_range, col_range, row_points, col_points, distance_criterion=0.5
         ):
@@ -269,6 +273,9 @@ def construct_tree(
         min_size,
         tol,
         max_rank,
+        row_points,
+        col_points,
+        adaptive,
     )
     top_right = construct_tree(
         matrix,
@@ -277,6 +284,9 @@ def construct_tree(
         min_size,
         tol,
         max_rank,
+        row_points,
+        col_points,
+        adaptive,
     )
     bottom_left = construct_tree(
         matrix,
@@ -285,6 +295,9 @@ def construct_tree(
         min_size,
         tol,
         max_rank,
+        row_points,
+        col_points,
+        adaptive,
     )
     bottom_right = construct_tree(
         matrix,
@@ -293,6 +306,9 @@ def construct_tree(
         min_size,
         tol,
         max_rank,
+        row_points,
+        col_points,
+        adaptive,
     )
 
     node.children = [top_left, top_right, bottom_left, bottom_right]
@@ -306,16 +322,36 @@ class HMatrix:
     We will use this property to subdivide the matrix into blocks
     """
 
-    def __init__(self, matrix: np.array, max_rank=5, min_size=16, tol=1e-6):
+    def __init__(
+        self,
+        matrix: np.array,
+        max_rank=5,
+        min_size=16,
+        tol=1e-6,
+        row_points=None,
+        col_points=None,
+        adaptive=True,
+    ):
         self.matrix = matrix
         self.nrows, self.ncols = matrix.shape
         self.max_rank = max_rank
         self.min_size = min_size
         self.tol = tol
+        self.row_points = row_points
+        self.col_points = col_points
+        self.adaptive = adaptive
 
         # Construct tree from root matrix
         self.root = construct_tree(
-            matrix, (0, self.nrows), (0, self.ncols), min_size, tol, max_rank
+            matrix,
+            (0, self.nrows),
+            (0, self.ncols),
+            min_size,
+            tol,
+            max_rank,
+            row_points,
+            col_points,
+            adaptive,
         )
 
 
@@ -487,6 +523,9 @@ def measure_compression(hmatrix: HMatrix) -> dict:
         "original_size_bytes": original_size_bytes,  # Key clarifies units
         "compressed_size_bytes": compressed_size_bytes,  # Key clarifies units
         "compression_ratio": compression_ratio,  # Now should be 1.0
+        "memory_saved_pct": (1 - compressed_size_bytes / original_size_bytes) * 100
+        if original_size_bytes > 0
+        else 0,
     }
 
 
