@@ -1,0 +1,2 @@
+max_rank,min_size,tol,construction_time_sec,hmatrix_stored_elements,hmatrix_compressed_size_bytes,compression_ratio,reconstruction_time_sec,reconstruction_relative_error,hmatrix_mult_time_sec,hmatrix_mult_relative_error,status
+8,8,0.1,5.5441179275512695,16763760,134110080,1.000802683884761,0.1421198844909668,0.1647155091689823,0.39064502716064453,0.056491669230017735,OK
