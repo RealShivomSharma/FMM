@@ -1,0 +1,420 @@
+vim.cmd [[packadd packer.nvim]]
+
+return require('packer').startup(function(use)
+    use 'wbthomason/packer.nvim' 
+
+    use {
+        'nvim-telescope/telescope.nvim',
+        tag = '0.1.4',
+        -- or                            , branch = '0.1.x',
+        requires = { {'nvim-lua/plenary.nvim'} }
+    }
+    use {'saghen/blink.cmp',
+    -- version = '*',
+    build = 'cargo build --release',
+    -- Ensure other build/version lines are commented out unless you specifically need them
+    -- version = '1.*', -- Optional: Pin to a release for prebuilt binary
+    -- build = 'cargo +nightly build --release',
+    -- build = 'nix run .#build-plugin', -- Optional: Nix build command
+
+    -- dependencies = { 'rafamadriz/friendly-snippets' }, -- Only if using snippet source
+
+    config = function()
+        require('blink.cmp').setup({
+            -- Your other config options here...
+            -- fuzzy = { implementation = "prefer_rust" }, -- No need to set this if building works
+        })
+    end
+}
+
+    use {'nvim-neorg/lua-utils.nvim'}
+
+    use {'pysan3/pathlib.nvim'}
+
+    use {'nvim-neotest/nvim-nio'}
+
+
+
+    use {
+        'rose-pine/neovim',
+        as = 'rose-pine',
+        config = function()
+            require('rose-pine').setup({
+                disable_background = true
+            })
+            vim.cmd('colorscheme rose-pine')
+            vim.opt.guifont = "Iosevka:h12" -- Set the font to Iosevka with size 12
+        end
+    }
+    use { "ellisonleao/gruvbox.nvim" }
+
+    use { "tiagovla/tokyodark.nvim" }
+
+
+
+    use {
+        "NStefan002/speedtyper.nvim",
+        config = function()
+            require("speedtyper").setup({
+                -- your config
+            })
+        end,
+    }
+
+    use('nvim-treesitter/nvim-treesitter', {run = ':TSUpdate'})
+
+    use {
+        "nvim-neorg/neorg",
+        version ="7.0.0",
+        requires = {
+            "nvim-lua/plenary.nvim",
+            "nvim-treesitter/nvim-treesitter"
+        },
+        config = function()
+            require('neorg').setup({
+                load = {
+                    ["core.defaults"] = {},
+                    ["core.concealer"] = {},
+                    ["core.dirman.utils"] = {},
+                    ["core.ui"] = {},
+                    ["core.esupports.hop"] = {},
+                    ['core.export'] = {},
+                },
+            })
+        end
+    }
+
+    use('nvim-treesitter/playground')
+
+
+    use('theprimeagen/harpoon')
+
+    use('mbbill/undotree')
+
+    use('tpope/vim-fugitive')
+
+
+    use {
+        'VonHeikemen/lsp-zero.nvim',
+        branch = 'v3.x',
+        requires = {
+            -- {'saghen/blink.cmp' },
+            {'williamboman/mason.nvim'},
+            {'williamboman/mason-lspconfig.nvim'},
+            {'neovim/nvim-lspconfig'},
+            -- {'hrsh7th/nvim-cmp'},
+            -- {'hrsh7th/cmp-nvim-lsp'},
+            {'L3MON4D3/LuaSnip'},
+        }
+    }
+
+    use('stevearc/dressing.nvim')
+
+    use('MunifTanjim/nui.nvim')
+
+
+    use{'yetone/avante.nvim', commit = '77c5ffeb784cf2b6e892401856441b8dfd38e175'}
+
+    use("LintaoAmons/scratch.nvim")
+
+    use('tpope/vim-commentary')
+
+    use('bluz71/vim-moonfly-colors')
+
+    use('dgox16/oldworld.nvim')
+    use {
+      'kkoomen/vim-doge',
+      run = ':call doge#install()'
+    }
+
+    use({
+        'cryptomilk/nightcity.nvim',
+        config = function()
+            require('nightcity').setup({
+                style = 'kabuki',
+                terminal_colors=true,
+            })
+        end,
+    })
+
+
+    use({
+    'MeanderingProgrammer/render-markdown.nvim',
+    after = { 'nvim-treesitter' },
+    requires = { 'echasnovski/mini.nvim', opt = true }, -- if you use the mini.nvim suite
+    -- requires = { 'echasnovski/mini.icons', opt = true }, -- if you use standalone mini plugins
+    -- requires = { 'nvim-tree/nvim-web-devicons', opt = true }, -- if you prefer nvim-web-devicons
+    config = function()
+        require('render-markdown').setup({})
+    end,
+})
+
+
+    use 'shaunsingh/nord.nvim'
+
+
+--     use {
+--         "danymat/neogen",
+--         config = function()
+--             require('neogen').setup {}
+--         end,
+--         -- Uncomment next line if you want to follow only stable versions
+--         -- tag = "*"
+--     }
+
+    use {
+        'marioortizmanero/adoc-pdf-live.nvim',
+        config = "require('adoc_pdf_live').setup()"
+    }
+
+    use {
+        'lervag/vimtex',
+        config = function()
+            vim.g.vimtex_view_general_options=''
+            vim.g.vimtex_view_method = 'skim'
+            vim.g.vimtex_view_skim_sync = 1
+            vim.g_vimtex_view_skim_activate =1
+            -- vim.g.vimtex_view_general_viewer = 'zathura'
+            -- vim.g.vimtex_view_general_options = '--synctex-forward @line:@col:@tex @pdf'
+           -- vim.g.vimtex_view_general_options = '--unique file:@pdf\\#src:@line@tex'
+            -- vim.g.vimtex_compiler_method = 'latexmk'
+        end
+}
+    use 'Mofiqul/dracula.nvim'
+
+
+    use {'nvim-orgmode/orgmode', config = function()
+        require('orgmode').setup{}
+    end
+}
+
+    use {
+        'nvim-lualine/lualine.nvim',
+        requires = { 'nvim-tree/nvim-web-devicons', opt = true },
+        config = function()
+            require('lualine').setup()
+        end
+    }
+
+    use({
+        "giusgad/pets.nvim",
+        requires = {
+            "giusgad/hologram.nvim",
+            "MunifTanjim/nui.nvim",
+        },
+        config = function()
+            require('pets').setup()
+        end
+    })
+    
+    use({
+        'fpeterek/nvim-surfers',
+        config = function()
+            require('nvim-surfers').setup({
+                use_tmux= true,
+            })
+        end
+    })
+
+    use {
+        'alanfortlink/blackjack.nvim',
+        requires = {'nvim-lua/plenary.nvim'},
+    }
+
+    use 'eandrju/cellular-automaton.nvim' 
+    use ({'seandewar/killersheep.nvim',
+    config = function()
+        require("killersheep").setup({
+            gore = true,           -- Enables/disables blood and gore.
+            keymaps = {
+                move_left = "h",     -- Keymap to move cannon to the left.
+                move_right = "l",    -- Keymap to move cannon to the right.
+                shoot = "<Space>",   -- Keymap to shoot the cannon.
+            },
+        })
+    end
+    })
+
+    use 'ThePrimeagen/vim-be-good'
+
+    use 'slugbyte/lackluster.nvim'
+
+    use "xero/miasma.nvim"
+
+    
+
+    use({'0xstepit/flow.nvim',
+    config = function()
+        require("flow").setup({
+            dark_theme = true,
+            high_constrast = false,
+            transparent = true,
+            fluo_color = "blue",
+            mode = "base",
+            aggressive_spell = false,
+        })
+    end
+    })
+    
+    use { "catppuccin/nvim", as = "catppuccin", config = function()
+        require("catppuccin").setup({
+            transparent_background = false,
+            background_opacity = 0.9, -- Adjust the opacity level for a blur effect
+            integrations = {
+                treesitter = true,
+                lsp_trouble = true,
+                which_key = true,
+            },
+        })
+        vim.cmd('colorscheme catppuccin')
+    end }
+
+    use { "dragfire/leetup.nvim", as = "leetup", requires = {"m00qek/baleia.nvim"}, config = function(_, opts)
+        require("leetup").setup(opts)
+    end}
+
+    use{ "elixir-tools/elixir-tools.nvim", tag = "stable", requires = { "nvim-lua/plenary.nvim" },
+    config = function(_, opts)
+        require("elixir").setup(opts) end}
+
+        -- use {'sphamba/smear-cursor.nvim',
+        -- config = function()
+        --     require('smear_cursor').setup({
+        --         stiffness =0.8,
+        --         trailing_stiffness = 0.5,
+        --         distance_stop_animating = 0.6,
+        --     })
+        -- end
+    -- }
+    use {
+        'RRethy/nvim-base16'}
+
+    use {'augmentcode/augment.vim',
+        config = function()
+            vim.g.augment_enable = false
+        end
+    }
+    
+    use 'HakonHarnes/img-clip.nvim'
+
+   -- Molten-nvim configuration for Packer
+-- Add this to your Packer config section
+      use "kiyoon/magick.nvim"
+
+use {
+  'benlubas/molten-nvim',
+  requires = {
+    '3rd/image.nvim',  -- optional: image support in neovim
+    'nvim-treesitter/nvim-treesitter' -- required: syntax highlighting
+  },
+  -- branch = 'v1.0.0', -- optional: use v1.0.0 for stability
+  config = function()
+    -- Set up Molten configuration
+    vim.g.molten_image_provider = 'image.nvim' -- use image.nvim for image display (optional)
+    vim.g.molten_output_win_max_height = 20    -- maximum height of output window
+    vim.g.molten_auto_open_output = true       -- automatically open output window when output is ready
+    vim.g.molten_wrap_output = true            -- wrap text in output window
+    vim.g.molten_virt_text_output = true       -- display output as virtual text
+    vim.g.molten_virt_lines_off_by_1 = true    -- fix vertical alignment in virtual lines
+    
+    -- Set the Python interpreter path
+    -- Note: Change this to your Python environment with Jupyter installed
+    vim.g.molten_python_executable = 'python3'
+    
+    -- Keymap configuration
+    local map = vim.keymap.set
+    local opts = { noremap = true, silent = true }
+    
+    -- Initialize a cell
+    map('n', '<localleader>mi', ':MoltenInit<CR>', opts)
+    
+    -- Evaluate a cell
+    map('n', '<localleader>me', ':MoltenEvaluateOperator<CR>', opts)
+    map('n', '<localleader>ml', ':MoltenEvaluateLine<CR>', opts)
+    map('n', '<localleader>mc', ':MoltenEvaluateCell<CR>', opts)
+    map('v', '<localleader>ms', ':MoltenEvaluateVisual<CR>', opts)
+    
+    -- Delete cell outputs
+    map('n', '<localleader>md', ':MoltenDelete<CR>', opts)
+    map('n', '<localleader>mx', ':MoltenInterrupt<CR>', opts)
+    
+    -- Navigate cells
+    map('n', '[c', ':MoltenPrevCell<CR>', opts)
+    map('n', ']c', ':MoltenNextCell<CR>', opts)
+    
+    -- Manage output windows
+    map('n', '<localleader>mo', ':MoltenOpenOutput<CR>', opts)
+    map('n', '<localleader>mh', ':MoltenHideOutput<CR>', opts)
+    
+    -- Kernels
+    map('n', '<localleader>mk', ':MoltenShowKernelInfo<CR>', opts)
+    map('n', '<localleader>mr', ':MoltenRestart<CR>', opts)
+    
+    -- Diagnostics
+    map('n', '<localleader>mdd', ':MoltenShowDiagnostics<CR>', opts)
+    
+    -- Setup filetype detection
+    -- vim.api.nvim_create_autocmd("FileType", {
+    --   pattern = {"ipynb"},
+    --   callback = function()
+    --     vim.cmd [[MoltenInit]]
+    --   end
+    -- })
+    
+    -- Treesitter configuration for cell detection
+    -- This helps with `%%` cell markers in Python files
+  end
+}
+
+-- For image.nvim (optional, only if you want image support)
+use {
+  '3rd/image.nvim',
+  config = function()
+    require('image').setup {
+      backend = 'kitty', -- Adjust based on your terminal: kitty, ueberzug, ueberzugpp, or viu
+      integrations = {
+        markdown = {
+          enabled = true,
+          clear_in_insert_mode = false,
+          download_remote_images = true,
+          only_render_image_at_cursor = false,
+          filetypes = { "markdown", "vimwiki" }, -- Markdown filetypes
+        },
+      },
+      max_width = nil,
+      max_height = nil,
+      max_width_window_percentage = nil,
+      max_height_window_percentage = 50,
+      window_overlap_clear_enabled = false, -- Set to true if images should be made invisible when windows are overlapped
+      editor_only_render_when_focused = false, -- Only render images when the editor is focused
+      tmux_show_only_in_active_window = false, -- Only show images if inside a focused tmux window
+      hijack_file_patterns = { "*.png", "*.jpg", "*.jpeg", "*.gif", "*.webp" }, -- Patterns for which to hijack open
+    }
+  end
+} 
+
+    use {
+        "GCBallesteros/jupytext.nvim",
+        config = function()
+            require("jupytext").setup({
+                formats = "ipynb,py", -- Specify the formats you want to use
+                default_format = "ipynb", -- Set the default format
+            })
+        end
+    }
+    use { "scottmckendry/cyberdream.nvim" }
+    
+    use "thesimonho/kanagawa-paper.nvim"
+
+    use({ "miikanissi/modus-themes.nvim" })
+
+    use 'NTBBloodbath/sweetie.nvim'
+
+    use 'Abstract-IDE/Abstract-cs'
+
+
+
+
+
+
+    end)
